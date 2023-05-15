@@ -13,7 +13,6 @@ import mill.scalalib.scalafmt._
 import coursier.maven.MavenRepository
 import ammonite.ops._, ImplicitWd._
 
-
 object Deps {
   object Versions {
 
@@ -56,6 +55,8 @@ object Deps {
     val spark         = "2.4.7"
     val oslib         = "0.6.2"
     val quill         = "3.6.0-RC3"
+
+    val circe         = "0.14.1"
   }
 }
 
@@ -205,6 +206,11 @@ object morphir extends Module {
         with ScalaMacroModule
         /*with MorphirScalafixModule*/ { self =>
 
+      override def moduleDeps = Seq(
+        morphir.sdk.core.jvm(crossScalaVersion),
+        morphir.sdk.json.jvm(crossScalaVersion)
+      )
+
       def artifactName = "morphir-ir"
       def ivyDeps = Agg(
         ivy"dev.zio::zio:${Versions.zio}",
@@ -214,13 +220,16 @@ object morphir extends Module {
         ivy"io.lemonlabs::scala-uri:${Versions.scalaUri}",
         ivy"org.scalactic::scalactic:${Versions.scalactic}",
         ivy"io.estatico::newtype:${Versions.newtype}",
-        ivy"dev.zio::zio-test::${Deps.Versions.zio}"
+        ivy"dev.zio::zio-test::${Deps.Versions.zio}",
+        ivy"io.circe::circe-core:${Versions.circe}",
+        ivy"io.circe::circe-generic:${Versions.circe}",
+        ivy"io.circe::circe-parser:${Versions.circe}"
       )
 
-      object test extends Tests {
-        def platformSegment: String = self.platformSegment
-        def crossScalaVersion       = JvmMorphirIrModule.this.crossScalaVersion
-      }
+//      object test extends Tests {
+//        def platformSegment: String = self.platformSegment
+//        def crossScalaVersion       = JvmMorphirIrModule.this.crossScalaVersion
+//      }
     }
   }
 //
@@ -247,53 +256,54 @@ object morphir extends Module {
 //  }
   object sdk extends Module {
 
-  object core extends Module {
-    object jvm
-      extends Cross[JvmMorphirSdkCore](
-        Versions.scala212,
-        Versions.scala211,
-        Versions.scala213
-      )
+    object core extends Module {
+      object jvm
+          extends Cross[JvmMorphirSdkCore](
+            Versions.scala212,
+            Versions.scala211,
+            Versions.scala213
+          )
 
-    class JvmMorphirSdkCore(val crossScalaVersion: String)
-      extends CrossScalaModule
-        with CommonJvmModule
-        with MorphirPublishModule {
-      self =>
+      class JvmMorphirSdkCore(val crossScalaVersion: String)
+          extends CrossScalaModule
+          with CommonJvmModule
+          with MorphirPublishModule {
+        self =>
 
-      def artifactName = "morphir-sdk-core"
+        def artifactName = "morphir-sdk-core"
 
-      def scalacPluginIvyDeps = Agg(ivy"com.github.ghik:::silencer-plugin:${Versions.silencer}")
+        def scalacPluginIvyDeps = Agg(ivy"com.github.ghik:::silencer-plugin:${Versions.silencer}")
 
-      def compileIvyDeps = Agg(ivy"com.github.ghik:::silencer-lib:${Versions.silencer}")
+        def compileIvyDeps = Agg(ivy"com.github.ghik:::silencer-lib:${Versions.silencer}")
 
-      def ivyDeps = Agg(ivy"org.scala-lang.modules::scala-collection-compat:${Versions.scalaCollectionsCompat}")
+        def ivyDeps = Agg(ivy"org.scala-lang.modules::scala-collection-compat:${Versions.scalaCollectionsCompat}")
 
-      object test extends Tests {
-        def platformSegment: String = self.platformSegment
+        object test extends Tests {
+          def platformSegment: String = self.platformSegment
 
-        def crossScalaVersion = JvmMorphirSdkCore.this.crossScalaVersion
+          def crossScalaVersion = JvmMorphirSdkCore.this.crossScalaVersion
+        }
       }
     }
-  }
 
     object json extends Module {
       object jvm
-        extends Cross[JvmMorphirSdkJson](
-          Versions.scala212
-        )
+          extends Cross[JvmMorphirSdkJson](
+            Versions.scala213,
+            Versions.scala212
+          )
       class JvmMorphirSdkJson(val crossScalaVersion: String)
-        extends CrossScalaModule
+          extends CrossScalaModule
           with CommonJvmModule
           with MorphirPublishModule { self =>
 
         def artifactName = "morphir-sdk-json"
         def compileIvyDeps = Agg(
-          ivy"io.circe::circe-core:0.14.1",
-          ivy"io.circe::circe-generic:0.14.1",
-          ivy"io.circe::circe-parser:0.14.1"
+          ivy"io.circe::circe-core:${Versions.circe}",
+          ivy"io.circe::circe-generic:${Versions.circe}",
+          ivy"io.circe::circe-parser:${Versions.circe}"
         )
-        def moduleDeps          = Seq(morphir.sdk.core.jvm(crossScalaVersion))
+        def moduleDeps = Seq(morphir.sdk.core.jvm(crossScalaVersion))
 
         object test extends Tests {
           def platformSegment: String = self.platformSegment
@@ -301,9 +311,9 @@ object morphir extends Module {
 
           override def ivyDeps = super.ivyDeps() ++
             Agg(
-              ivy"io.circe::circe-core:0.14.1",
-              ivy"io.circe::circe-generic:0.14.1",
-              ivy"io.circe::circe-parser:0.14.1"
+              ivy"io.circe::circe-core:${Versions.circe}",
+              ivy"io.circe::circe-generic:${Versions.circe}",
+              ivy"io.circe::circe-parser:${Versions.circe}"
             )
         }
       }
@@ -334,7 +344,7 @@ object morphir extends Module {
         object test extends Tests {
           def platformSegment: String = self.platformSegment
 
-          def crossScalaVersion       = JvmMorphirSdkSpark.this.crossScalaVersion
+          def crossScalaVersion = JvmMorphirSdkSpark.this.crossScalaVersion
 
           override def ivyDeps = super.ivyDeps() ++
             Agg(
@@ -349,12 +359,12 @@ object morphir extends Module {
 
   object spark extends Module {
     object jvm
-      extends Cross[JvmMorphirSdkSpark](
-        Versions.scala212,
-      )
+        extends Cross[JvmMorphirSdkSpark](
+          Versions.scala212
+        )
 
     class JvmMorphirSdkSpark(val crossScalaVersion: String)
-      extends CrossScalaModule
+        extends CrossScalaModule
         with CommonJvmModule
         with MorphirPublishModule {
       self =>
@@ -363,7 +373,7 @@ object morphir extends Module {
 
       def ivyDeps = Agg(
         ivy"org.apache.spark::spark-core:3.2.1",
-        ivy"org.apache.spark::spark-sql:3.2.1",
+        ivy"org.apache.spark::spark-sql:3.2.1"
       )
 
       object test extends Tests {
